@@ -8,7 +8,7 @@ import keras
 from keras.models import Sequential
 from keras.layers.core import Dense, Activation, Flatten
 from keras.layers.convolutional import Convolution2D
-from keras.optimizers import SGD , Adam ,RMSprop
+from keras.optimizers import SGD, Adam, RMSprop
 
 # Parameters
 IMAGE_HEIGTH = 100
@@ -17,15 +17,15 @@ ENV_LOCATION = "build/froggerNew"
 
 # model parameters
 LEARNING_RATE = 0.00025
-STACK_SIZE = 4 # stack size for single state
-BATCH = 32 # size of mini batch
+STACK_SIZE = 4  # stack size for single state
+BATCH = 32  # size of mini batch
 GAMMA = 0.99
 
 # agent
-FINAL_EPSILON = 0.1 # final value of epsilon
-INITIAL_EPSILON = 1 # starting value of epsilon
-OBSERVER = 50 # filling D (expireance replay data)
-REPLAY_SIZE = 100000 # size of D
+FINAL_EPSILON = 0.1  # final value of epsilon
+INITIAL_EPSILON = 1  # starting value of epsilon
+OBSERVER = 50  # filling D (expireance replay data)
+REPLAY_SIZE = 100000  # size of D
 
 #
 TOTAL_EPI = 9000000
@@ -92,6 +92,7 @@ class Game:
                     reward = round(env_info.rewards[0], 5)  # get reward
 
         # reshape for Keras
+        # noinspection PyArgumentList
         stack = stack.reshape(1, stack.shape[0], stack.shape[1], stack.shape[2])  # 1*100*100*4
 
         return reward, stack, terminal
@@ -148,7 +149,7 @@ class Brain:
     # train model using the re play queue
     def train(self, D):
 
-        self.loss = 0
+        self.trainingLoss = 0
         # sample a minibatch to train on
         minibatch = random.sample(D, BATCH)
 
@@ -173,13 +174,13 @@ class Brain:
             else:
                 targets[j, action_t] = reward_t + GAMMA * np.max(Q_sa)
 
-        self.loss += self.model.train_on_batch(inputs, targets)
+        self.trainingLoss += self.model.train_on_batch(inputs, targets)
 
     # update q`
     def updateTargetModel(self):
         self._model = self.model
 
-    def save(self,modelName):
+    def save(self, modelName):
         self.model.save(modelName)
 
 
@@ -229,7 +230,7 @@ class Agent:
         self.modelCount += 1
 
 
-    # environment that run the training
+# environment that run the training
 
 class Environment:
 
