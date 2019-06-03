@@ -103,5 +103,10 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-# idea
+# my ignore
 .idea/
+build/
+UnitySDK.log
+*.h5
+*.xml
+
