@@ -108,4 +108,4 @@ venv.bak/
 build/
 UnitySDK.log
 *.h5
-*.xml
+colors.scheme.xml
