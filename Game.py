@@ -24,7 +24,7 @@ GAMMA = 0.99
 # agent
 FINAL_EPSILON = 0.1  # final value of epsilon
 INITIAL_EPSILON = 1  # starting value of epsilon
-OBSERVER = 50  # filling D (expireance replay data)
+OBSERVER = 5000  # filling D (experience replay data)
 REPLAY_SIZE = 100000  # size of D
 
 #
@@ -38,12 +38,12 @@ class Game:
     # set up unity ml agent environment
 
     def __init__(self):
-        self.loadEnv()
+        self.loadEnv(0)
 
-    def loadEnv(self):
+    def loadEnv(self, wid):
         # load env
         env_name = ENV_LOCATION
-        self.env = UnityEnvironment(env_name)
+        self.env = UnityEnvironment(env_name, worker_id = wid)
         # Set the default brain to work with
         self.default_brain = self.env.brain_names[0]
         self.brain = self.env.brains[self.default_brain]
@@ -103,7 +103,7 @@ class Game:
 
     def reset(self):
         self.close()
-        self.loadEnv()
+        self.loadEnv(0)
 
 
 # -- Brain --#
