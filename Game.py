@@ -18,13 +18,13 @@ ENV_LOCATION = "build/froggerNew"
 # model parameters
 LEARNING_RATE = 0.00025
 STACK_SIZE = 4  # stack size for single state
-BATCH = 32  # size of mini batch
+BATCH = 64  # size of mini batch
 GAMMA = 0.99
 
 # agent
 FINAL_EPSILON = 0.1  # final value of epsilon
 INITIAL_EPSILON = 1  # starting value of epsilon
-OBSERVER = 50  # filling D (expireance replay data)
+OBSERVER = 5000  # filling D (experience replay data)
 REPLAY_SIZE = 100000  # size of D
 
 #
@@ -38,12 +38,12 @@ class Game:
     # set up unity ml agent environment
 
     def __init__(self):
-        self.loadEnv()
+        self.loadEnv(0)
 
-    def loadEnv(self):
+    def loadEnv(self, wid):
         # load env
         env_name = ENV_LOCATION
-        self.env = UnityEnvironment(env_name)
+        self.env = UnityEnvironment(env_name, worker_id = wid)
         # Set the default brain to work with
         self.default_brain = self.env.brain_names[0]
         self.brain = self.env.brains[self.default_brain]
@@ -67,7 +67,7 @@ class Game:
         reward = round(env_info.rewards[0], 5)  # get reward
         newState = env_info.visual_observations[0][0]  # get state visual observation
         newStateGray = skimage.color.rgb2gray(newState)  # covert to gray scale
-        # newStateGray = skimage.transform.resize(newStateGray,(100,100))
+        newStateGray = skimage.transform.resize(newStateGray, (IMAGE_HEIGTH, IMAGE_WIDTH))
         # check terminal reached
         if reward == -1 or reward == -2:
             terminal = True
@@ -80,7 +80,7 @@ class Game:
             env_info = self.env.step()[self.default_brain]  # change environment to next step without action
             st = env_info.visual_observations[0][0]
             stGray = skimage.color.rgb2gray(st)
-            # stGray = skimage.transform.resize(stGray,(100,100))
+            stGray = skimage.transform.resize(stGray, (IMAGE_HEIGTH, IMAGE_WIDTH))
             stack[:, :, i] = stGray
             # if terminal only consider the reward for terminal
             if env_info.rewards[0] == -1 or env_info.rewards[0] == -2:
@@ -103,7 +103,7 @@ class Game:
 
     def reset(self):
         self.close()
-        self.loadEnv()
+        self.loadEnv(0)
 
 
 # -- Brain --#
@@ -128,12 +128,13 @@ class Brain:
 
         model.add(Flatten())
         model.add(Dense(512))
-        model.add(Activation('linear'))
-
+        #model.add(Activation('linear'))
+        model.add(Activation('relu'))
         model.add(Dense(5))
 
-        rmsProp = RMSprop(lr=LEARNING_RATE)
-        model.compile(loss='mean_squared_error', optimizer=rmsProp)  # mse for dqn
+        #opt = RMSprop(lr=LEARNING_RATE)
+        opt = Adam(lr=LEARNING_RATE)
+        model.compile(loss='mean_squared_error', optimizer=opt)  # mse for dqn
 
         return model
 
