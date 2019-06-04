@@ -111,3 +111,4 @@ UnitySDK.log
 *.xml
 _windows/
 codestyles/
+find.xml
