@@ -24,7 +24,7 @@ GAMMA = 0.99
 # agent
 FINAL_EPSILON = 0.1  # final value of epsilon
 INITIAL_EPSILON = 1  # starting value of epsilon
-OBSERVER = 5000  # filling D (experience replay data)
+OBSERVER = 50000  # filling D (experience replay data)
 REPLAY_SIZE = 100000  # size of D
 
 #
@@ -43,7 +43,7 @@ class Game:
     def loadEnv(self, wid):
         # load env
         env_name = ENV_LOCATION
-        self.env = UnityEnvironment(env_name, worker_id = wid)
+        self.env = UnityEnvironment(env_name, worker_id=wid)
         # Set the default brain to work with
         self.default_brain = self.env.brain_names[0]
         self.brain = self.env.brains[self.default_brain]
@@ -128,12 +128,12 @@ class Brain:
 
         model.add(Flatten())
         model.add(Dense(512))
-        #model.add(Activation('linear'))
-        model.add(Activation('relu'))
+        model.add(Activation('linear'))
+        #model.add(Activation('relu'))
         model.add(Dense(5))
 
-        #opt = RMSprop(lr=LEARNING_RATE)
-        opt = Adam(lr=LEARNING_RATE)
+        opt = RMSprop(lr=LEARNING_RATE, rho=0.95, epsilon=0.01)
+        #opt = Adam(lr=LEARNING_RATE)
         model.compile(loss='mean_squared_error', optimizer=opt)  # mse for dqn
 
         return model
@@ -148,11 +148,9 @@ class Brain:
         return actionVal
 
     # train model using the re play queue
-    def train(self, D):
+    def train(self, minibatch):
 
         self.trainingLoss = 0
-        # sample a minibatch to train on
-        minibatch = random.sample(D, BATCH)
 
         inputs = np.zeros((BATCH, IMAGE_HEIGTH, IMAGE_WIDTH, STACK_SIZE))  # 2500, 100, 100, 4
         targets = np.zeros((inputs.shape[0], 5))  # 2500, 4
@@ -216,14 +214,16 @@ class Agent:
         self.D.append((state, actionValue, reward, newState, terminalReached))
 
     def replay(self):
-        self.brain.train(self.D)
+        # sample a minibatch to train on
+        minibatch = random.sample(self.D, BATCH)
+        self.brain.train(minibatch)
 
     def updateBrain(self):
         self.brain.updateTargetModel()
 
     def updateEpsiolon(self):
         if self.epsilon > FINAL_EPSILON:
-            self.epsilon -= (INITIAL_EPSILON - FINAL_EPSILON) / 1000000
+            self.epsilon -= (INITIAL_EPSILON - FINAL_EPSILON) / REPLAY_SIZE
 
     def saveBrain(self):
         modelName = 'testModel' + str(self.modelCount) + '.h5'
