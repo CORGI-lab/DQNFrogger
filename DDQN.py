@@ -9,6 +9,7 @@ from keras.models import Sequential
 from keras.layers.core import Dense, Activation, Flatten
 from keras.layers.convolutional import Convolution2D
 from keras.optimizers import SGD, Adam, RMSprop
+from keras.models import load_model
 
 # Parameters
 IMAGE_HEIGTH = 100
@@ -276,6 +277,14 @@ class Environment:
             state_t = state_t1
 
         self.game.close()
+
+    def test(self, model_name):
+        self.game = Game()
+        # todo : fill method to test saved models
+        # load model based on the model name : Agent -> brain
+        # select action from loaded model brain : Agent
+        # perform action to game
+        # keep rewards (cumilate to teminatition)
 
     def saveModel(self):
         self.agent.saveBrain()
