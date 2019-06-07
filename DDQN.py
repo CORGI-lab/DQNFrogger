@@ -24,7 +24,7 @@ GAMMA = 0.99
 # agent
 FINAL_EPSILON = 0.1  # final value of epsilon
 INITIAL_EPSILON = 1  # starting value of epsilon
-OBSERVER = 100  # filling D (experience replay data)
+OBSERVER = 50000  # filling D (experience replay data)
 REPLAY_SIZE = 100000  # size of D
 
 #
