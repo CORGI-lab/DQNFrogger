@@ -24,7 +24,7 @@ GAMMA = 0.99
 # agent
 FINAL_EPSILON = 0.1  # final value of epsilon
 INITIAL_EPSILON = 1  # starting value of epsilon
-OBSERVER = 50000  # filling D (experience replay data)
+OBSERVER = 100  # filling D (experience replay data)
 REPLAY_SIZE = 100000  # size of D
 
 #
@@ -154,6 +154,7 @@ class Brain:
 
         inputs = np.zeros((BATCH, IMAGE_HEIGTH, IMAGE_WIDTH, STACK_SIZE))  # 2500, 100, 100, 4
         targets = np.zeros((inputs.shape[0], 5))  # 2500, 4
+        targets_ = np.zeros((inputs.shape[0], 5))  # 2500, 4
 
         # Now we do the experience replay
         for j in range(0, len(minibatch)):
@@ -166,12 +167,13 @@ class Brain:
             inputs[j:j + 1] = state_t  # saved down s_t as input
 
             targets[j] = self.model.predict(state_t)  # predict from the model each action value
+            targets_[j] = self.model.predict(state_t1)  # predict from the online model each action value
             Q_sa = self._model.predict(state_t1)  # predict to get arg max Q to cal TD
 
             if terminal:
                 targets[j, action_t] = reward_t  # if terminal only set target as reward for the action
             else:
-                targets[j, action_t] = reward_t + GAMMA * Q_sa[np.argmax(targets[j])]
+                targets[j, action_t] = reward_t + GAMMA * Q_sa[0][np.argmax(targets_[j])]
 
         self.trainingLoss += self.model.train_on_batch(inputs, targets)
 
