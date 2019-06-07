@@ -165,7 +165,7 @@ class Brain:
 
             inputs[j:j + 1] = state_t  # saved down s_t as input
 
-            targets[j] = self._model.predict(state_t)  # predict from the model each action value
+            targets[j] = self.model.predict(state_t)  # predict from the model each action value
             Q_sa = self._model.predict(state_t1)  # predict to get arg max Q to cal TD
 
             if terminal:
