@@ -1,20 +1,20 @@
 import skimage
 from mlagents.envs import UnityEnvironment
+import numpy as np
 
-# TODO : finish
-ENV_LOCATION = "build/froggerNew"
 
 # -- game handling class -- #
 class Game:
 
     # set up unity ml agent environment
 
-    def __init__(self):
-        self.loadEnv(0)
+    def __init__(self, game_location):
+        self.ENV_LOCATION = game_location
+        self.load_env(0)
 
-    def loadEnv(self, wid):
+    def load_env(self, wid):
         # load env
-        env_name = ENV_LOCATION
+        env_name = self.ENV_LOCATION
         self.env = UnityEnvironment(env_name, worker_id=wid)
         # Set the default brain to work with
         self.default_brain = self.env.brain_names[0]
@@ -26,36 +26,35 @@ class Game:
     # actions
     # 1 - up, 2 - down , 3- left , 4 -right , 0 - do nothing
 
-    def performAction(self, actionValue, numberOfFrames=STACK_SIZE):
+    def perform_action(self, action_value, image_height, image_width, number_of_frames=4):
         action = [[0]]
-        action[0] = actionValue
+        action[0] = action_value
         terminal = False  # indication of terminal state
-        size = (IMAGE_HEIGTH, IMAGE_WIDTH, numberOfFrames)  # create list to keep frames
+        size = (image_height, image_width, number_of_frames)  # create list to keep frames
         stack = np.zeros(size)
-        reward = 0  # rewards for all the frames
 
         # first frame after action
         env_info = self.env.step(action)[self.default_brain]  # send action to brain
         reward = round(env_info.rewards[0], 5)  # get reward
-        newState = env_info.visual_observations[0][0]  # get state visual observation
-        newStateGray = skimage.color.rgb2gray(newState)  # covert to gray scale
-        newStateGray = skimage.transform.resize(newStateGray, (IMAGE_HEIGTH, IMAGE_WIDTH))
+        new_state = env_info.visual_observations[0][0]  # get state visual observation
+        new_state_gray = skimage.color.rgb2gray(new_state)  # covert to gray scale
+        new_state_gray = skimage.transform.resize(new_state_gray, (image_height, image_width))
         # check terminal reached
-        if reward == -1 or reward == -2:
+        if env_info.local_done:
             terminal = True
 
-        # add the state to the 0 th position
-        stack[:, :, 0] = newStateGray
+        # add the state to the 0 th position of stack
+        stack[:, :, 0] = new_state_gray
 
         # get stack of frames after the action
-        for i in range(1, numberOfFrames):
+        for i in range(1, number_of_frames):
             env_info = self.env.step()[self.default_brain]  # change environment to next step without action
             st = env_info.visual_observations[0][0]
-            stGray = skimage.color.rgb2gray(st)
-            stGray = skimage.transform.resize(stGray, (IMAGE_HEIGTH, IMAGE_WIDTH))
-            stack[:, :, i] = stGray
+            st_gray = skimage.color.rgb2gray(st)
+            st_gray = skimage.transform.resize(st_gray, (image_height, image_width))
+            stack[:, :, i] = st_gray
             # if terminal only consider the reward for terminal
-            if env_info.rewards[0] == -1 or env_info.rewards[0] == -2:
+            if env_info.local_done:
                 terminal = True
                 reward = round(env_info.rewards[0], 5)
             elif not terminal:
@@ -65,7 +64,7 @@ class Game:
 
         # reshape for Keras
         # noinspection PyArgumentList
-        stack = stack.reshape(1, stack.shape[0], stack.shape[1], stack.shape[2])  # 1*100*100*4
+        stack = stack.reshape(1, stack.shape[0], stack.shape[1], stack.shape[2])
 
         return reward, stack, terminal
 
@@ -75,4 +74,4 @@ class Game:
 
     def reset(self):
         self.close()
-        self.loadEnv(0)
+        self.load_env(0)

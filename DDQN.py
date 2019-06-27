@@ -1,5 +1,3 @@
-import skimage
-from mlagents.envs import UnityEnvironment
 import numpy as np
 from collections import deque
 import random
@@ -10,6 +8,8 @@ from keras.layers.core import Dense, Activation, Flatten
 from keras.layers.convolutional import Convolution2D
 from keras.optimizers import SGD, Adam, RMSprop
 from keras.models import load_model
+
+from GameHandler import Game
 
 # Parameters
 IMAGE_HEIGTH = 100
@@ -35,84 +35,6 @@ REPLAY_SIZE = 100000  # size of D
 #
 TOTAL_EPI = 9000000
 C = 10000  # update q`
-
-
-# -- game handling class -- #
-class Game:
-
-    # set up unity ml agent environment
-
-    def __init__(self):
-        self.loadEnv(0)
-
-    def loadEnv(self, wid):
-        # load env
-        env_name = ENV_LOCATION
-        self.env = UnityEnvironment(env_name, worker_id=wid)
-        # Set the default brain to work with
-        self.default_brain = self.env.brain_names[0]
-        self.brain = self.env.brains[self.default_brain]
-        # Reset the environment - train mode enabled
-        env_info = self.env.reset(train_mode=True)[self.default_brain]
-
-    # this frogger game action space is 5, actions[0] = selected action (action = [[1]])
-    # actions
-    # 1 - up, 2 - down , 3- left , 4 -right , 0 - do nothing
-
-    def performAction(self, actionValue, numberOfFrames=STACK_SIZE):
-        action = [[0]]
-        action[0] = actionValue
-        terminal = False  # indication of terminal state
-        size = (IMAGE_HEIGTH, IMAGE_WIDTH, numberOfFrames)  # create list to keep frames
-        stack = np.zeros(size)
-        reward = 0  # rewards for all the frames
-
-        # first frame after action
-        env_info = self.env.step(action)[self.default_brain]  # send action to brain
-        reward = round(env_info.rewards[0], 5)  # get reward
-        newState = env_info.visual_observations[0][0]  # get state visual observation
-        newStateGray = skimage.color.rgb2gray(newState)  # covert to gray scale
-        newStateGray = skimage.transform.resize(newStateGray, (IMAGE_HEIGTH, IMAGE_WIDTH))
-        # check terminal reached
-        if reward == DEATH_REWARD or reward == GAME_OVER_REWARD:
-            terminal = True
-        elif reward == GOAL_REWARD:
-            terminal = True
-        # add the state to the 0 th position
-        stack[:, :, 0] = newStateGray
-
-        # get stack of frames after the action
-        for i in range(1, numberOfFrames):
-            env_info = self.env.step()[self.default_brain]  # change environment to next step without action
-            st = env_info.visual_observations[0][0]
-            stGray = skimage.color.rgb2gray(st)
-            stGray = skimage.transform.resize(stGray, (IMAGE_HEIGTH, IMAGE_WIDTH))
-            stack[:, :, i] = stGray
-            # if terminal only consider the reward for terminal
-            if env_info.rewards[0] == DEATH_REWARD or env_info.rewards[0] == GAME_OVER_REWARD:
-                terminal = True
-                reward = round(env_info.rewards[0], 5)
-            elif env_info.rewards[0] == GOAL_REWARD:
-                terminal = True
-                reward = round(env_info.rewards[0], 5)
-            elif not terminal:
-                # if it got a positive reward for move up let it have it
-                if reward < 0:
-                    reward = round(env_info.rewards[0], 5)  # get reward
-
-        # reshape for Keras
-        # noinspection PyArgumentList
-        stack = stack.reshape(1, stack.shape[0], stack.shape[1], stack.shape[2])  # 1*100*100*4
-
-        return reward, stack, terminal
-
-    # close environment
-    def close(self):
-        self.env.close()
-
-    def reset(self):
-        self.close()
-        self.loadEnv(0)
 
 
 # -- Brain --#
@@ -248,16 +170,16 @@ class Environment:
 
     def __init__(self):
         self.agent = Agent()
-        self.game = Game()
+        self.game = Game(ENV_LOCATION)
 
     def run(self):
         #  fill D
         #  do initial action to get initial state
         action = 0
-        reward, state_t, terminal = self.game.performAction(action)
+        reward, state_t, terminal = self.game.perform_action(action, IMAGE_HEIGTH, IMAGE_WIDTH)
         for i in range(0, OBSERVER):
             action = self.agent.actRandom()
-            reward, state_t1, terminal = self.game.performAction(action)
+            reward, state_t1, terminal = self.game.perform_action(action, IMAGE_HEIGTH, IMAGE_WIDTH)
             self.agent.observe(state_t, action, reward, state_t1, terminal)
             state_t = state_t1
 
@@ -267,10 +189,10 @@ class Environment:
         # train agent
         #  do initial action to get initial state
         action = 0
-        reward, state_t, terminal = self.game.performAction(action)
+        reward, state_t, terminal = self.game.perform_action(action, IMAGE_HEIGTH, IMAGE_WIDTH)
         for i in range(0, TOTAL_EPI):
             action = self.agent.act(state_t)
-            reward, state_t1, terminal = self.game.performAction(action)
+            reward, state_t1, terminal = self.game.perform_action(action, IMAGE_HEIGTH, IMAGE_WIDTH)
             self.agent.observe(state_t, action, reward, state_t1, terminal)
             self.agent.replay()
             self.agent.updateEpsiolon()
@@ -280,14 +202,14 @@ class Environment:
                 self.saveModel()
             if terminal:
                 action = 0
-                reward, state_t1, terminal = self.game.performAction(action)
+                reward, state_t1, terminal = self.game.perform_action(action, IMAGE_HEIGTH, IMAGE_WIDTH)
 
             state_t = state_t1
 
         self.game.close()
 
     def test(self, model_name):
-        self.game = Game()
+        self.game = Game(ENV_LOCATION)
         # todo : fill method to test saved models
         # load model based on the model name : Agent -> brain
         # select action from loaded model brain : Agent
