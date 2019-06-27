@@ -15,6 +15,10 @@ from keras.models import load_model
 IMAGE_HEIGTH = 100
 IMAGE_WIDTH = 100
 ENV_LOCATION = "build/froggerNew"
+# rewards for terminal find
+DEATH_REWARD = -50
+GAME_OVER_REWARD = -50
+GOAL_REWARD = 50
 
 # model parameters
 LEARNING_RATE = 0.00025
@@ -70,9 +74,10 @@ class Game:
         newStateGray = skimage.color.rgb2gray(newState)  # covert to gray scale
         newStateGray = skimage.transform.resize(newStateGray, (IMAGE_HEIGTH, IMAGE_WIDTH))
         # check terminal reached
-        if reward == -1 or reward == -2:
+        if reward == DEATH_REWARD or reward == GAME_OVER_REWARD:
             terminal = True
-
+        elif reward == GOAL_REWARD:
+            terminal = True
         # add the state to the 0 th position
         stack[:, :, 0] = newStateGray
 
@@ -84,7 +89,10 @@ class Game:
             stGray = skimage.transform.resize(stGray, (IMAGE_HEIGTH, IMAGE_WIDTH))
             stack[:, :, i] = stGray
             # if terminal only consider the reward for terminal
-            if env_info.rewards[0] == -1 or env_info.rewards[0] == -2:
+            if env_info.rewards[0] == DEATH_REWARD or env_info.rewards[0] == GAME_OVER_REWARD:
+                terminal = True
+                reward = round(env_info.rewards[0], 5)
+            elif env_info.rewards[0] == GOAL_REWARD:
                 terminal = True
                 reward = round(env_info.rewards[0], 5)
             elif not terminal:
