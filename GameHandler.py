@@ -40,7 +40,8 @@ class Game:
         new_state_gray = skimage.color.rgb2gray(new_state)  # covert to gray scale
         new_state_gray = skimage.transform.resize(new_state_gray, (image_height, image_width))
         # check terminal reached
-        if env_info.local_done:
+        if env_info.local_done[0]:
+            print("ACTION END", env_info.local_done)
             terminal = True
 
         # add the state to the 0 th position of stack
@@ -54,13 +55,9 @@ class Game:
             st_gray = skimage.transform.resize(st_gray, (image_height, image_width))
             stack[:, :, i] = st_gray
             # if terminal only consider the reward for terminal
-            if env_info.local_done:
+            if env_info.local_done[0]:
                 terminal = True
                 reward = round(env_info.rewards[0], 5)
-            elif not terminal:
-                # if it got a positive reward for move up let it have it
-                if reward < 0:
-                    reward = round(env_info.rewards[0], 5)  # get reward
 
         # reshape for Keras
         # noinspection PyArgumentList
