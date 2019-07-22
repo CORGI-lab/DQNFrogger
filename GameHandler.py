@@ -30,30 +30,30 @@ class Game:
         action = [[0]]
         action[0] = action_value
         terminal = False  # indication of terminal state
-        size = (image_height, image_width, number_of_frames)  # create list to keep frames
+        # 3 - R, G, B
+        size = (image_height, image_width, 3, number_of_frames)  # create list to keep frames
         stack = np.zeros(size)
 
         # first frame after action
         env_info = self.env.step(action)[self.default_brain]  # send action to brain
         reward = round(env_info.rewards[0], 5)  # get reward
         new_state = env_info.visual_observations[0][0]  # get state visual observation
-        new_state_gray = skimage.color.rgb2gray(new_state)  # covert to gray scale
-        new_state_gray = skimage.transform.resize(new_state_gray, (image_height, image_width))
+        # new_state_gray = skimage.color.rgb2gray(new_state)  # covert to gray scale
+        new_state_gray = skimage.transform.resize(new_state, (image_height, image_width))
         # check terminal reached
         if env_info.local_done[0]:
-            print("ACTION END", env_info.local_done)
             terminal = True
 
         # add the state to the 0 th position of stack
-        stack[:, :, 0] = new_state_gray
+        stack[:, :, :, 0] = new_state_gray
 
         # get stack of frames after the action
         for i in range(1, number_of_frames):
             env_info = self.env.step()[self.default_brain]  # change environment to next step without action
             st = env_info.visual_observations[0][0]
-            st_gray = skimage.color.rgb2gray(st)
-            st_gray = skimage.transform.resize(st_gray, (image_height, image_width))
-            stack[:, :, i] = st_gray
+            #st_gray = skimage.color.rgb2gray(st)
+            st_gray = skimage.transform.resize(st, (image_height, image_width))
+            stack[:, :, :, i] = st_gray
             # if terminal only consider the reward for terminal
             if env_info.local_done[0]:
                 terminal = True
@@ -61,7 +61,7 @@ class Game:
 
         # reshape for Keras
         # noinspection PyArgumentList
-        stack = stack.reshape(1, stack.shape[0], stack.shape[1], stack.shape[2])
+        stack = stack.reshape(1, stack.shape[0], stack.shape[1], stack.shape[2], stack.shape[3])
 
         return reward, stack, terminal
 
