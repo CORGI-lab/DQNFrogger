@@ -2,6 +2,8 @@ import numpy as np
 from collections import deque
 import random
 import math
+import skimage
+
 import keras
 from keras.models import Sequential
 from keras.layers.core import Dense, Activation, Flatten
@@ -14,7 +16,7 @@ from GameHandler import Game
 # Parameters
 IMAGE_HEIGTH = 100
 IMAGE_WIDTH = 100
-ENV_LOCATION = "build/froggerNew"
+ENV_LOCATION = "build/UnityFrogger"
 # rewards for terminal find
 DEATH_REWARD = -50
 GAME_OVER_REWARD = -50
@@ -76,7 +78,7 @@ class Brain:
     def predictAction(self, state):
 
         # todo : cal soft max and call lan based model to find the action
-        q = self.model.predict(state)  # input a stack of 4 images, get the prediction
+        q = self.model.predict(self.pre_process_images(state))  # input a stack of 4 images, get the prediction
         max_Q = np.argmax(q)
         actionVal = max_Q
 
@@ -113,15 +115,15 @@ class Brain:
             state_t1 = minibatch[j][3]  # new state
             terminal = minibatch[j][4]  # is terminal reached or not
 
-            inputs[j:j + 1] = state_t  # saved down s_t as input
+            inputs[j:j + 1] = self.pre_process_images(state_t)  # saved down s_t as input
 
-            targets[j] = self.model.predict(state_t)  # predict from the model each action value
-            targets_[j] = self.model.predict(state_t1)  # predict from the online model each action value
+            targets[j] = self.model.predict(self.pre_process_images(state_t))  # predict from the model each action value
+            targets_[j] = self.model.predict(self.pre_process_images(state_t1))  # predict from the online model each action value
 
             # todo : modification to call lan based model and predict actions for the training
             softmax_values = self.calculate_softmax(targets[j])
 
-            Q_sa = self._model.predict(state_t1)  # predict to get arg max Q to cal TD
+            Q_sa = self._model.predict(self.pre_process_images(state_t1))  # predict to get arg max Q to cal TD
 
             if terminal:
                 targets[j, action_t] = reward_t  # if terminal only set target as reward for the action
@@ -129,6 +131,20 @@ class Brain:
                 targets[j, action_t] = reward_t + GAMMA * Q_sa[0][np.argmax(targets_[j])]
 
         self.trainingLoss += self.model.train_on_batch(inputs, targets)
+
+    # method to convert images to B/W
+    def pre_process_images(self, state):
+        size = (IMAGE_WIDTH, IMAGE_HEIGTH, STACK_SIZE)  # create list to keep frames
+        stack = np.zeros(size)
+
+        for i in range(0, STACK_SIZE):
+            st = skimage.color.rgb2gray(state[0][:, :, :, i])
+            st_gray = skimage.transform.resize(st, (IMAGE_WIDTH, IMAGE_HEIGTH))
+            stack[:, :, i] = st_gray
+
+        stack = stack.reshape(1, stack.shape[0], stack.shape[1], stack.shape[2])
+
+        return stack
 
     # update q`
     def updateTargetModel(self):

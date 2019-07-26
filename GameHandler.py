@@ -6,12 +6,18 @@ import numpy as np
 # -- game handling class -- #
 class Game:
 
-    # set up unity ml agent environment
-
+    """
+    set up unity ml agent environment
+    @:param game_location  : file path for executable
+    """
     def __init__(self, game_location):
         self.ENV_LOCATION = game_location
         self.load_env(0)
 
+    """
+    load unity environment
+    @:param wid  : id for the worker in unity environment 
+    """
     def load_env(self, wid):
         # load env
         env_name = self.ENV_LOCATION
@@ -25,7 +31,16 @@ class Game:
     # this frogger game action space is 5, actions[0] = selected action (action = [[1]])
     # actions
     # 1 - up, 2 - down , 3- left , 4 -right , 0 - do nothing
-
+    """
+    performs a given action to the unity game 
+    @:param action_value : action to be execute
+    @:param image_height : Desire image height 
+    @:param image_width  : Desire image width 
+    @:param number_of_frames : stack size (this number of frames will e stack together by performing no op action )
+    @:return reward : reward for the action 
+    @:return stack  : stack of frames
+    @:return terminal : if game reached terminal state or not
+    """
     def perform_action(self, action_value, image_height, image_width, number_of_frames=4):
         action = [[0]]
         action[0] = action_value
@@ -39,7 +54,7 @@ class Game:
         reward = round(env_info.rewards[0], 5)  # get reward
         new_state = env_info.visual_observations[0][0]  # get state visual observation
         # new_state_gray = skimage.color.rgb2gray(new_state)  # covert to gray scale
-        new_state_gray = skimage.transform.resize(new_state, (image_height, image_width))
+        new_state_gray = skimage.transform.resize(new_state, (image_height, image_width))  # resize
         # check terminal reached
         if env_info.local_done[0]:
             terminal = True
@@ -65,10 +80,15 @@ class Game:
 
         return reward, stack, terminal
 
-    # close environment
+    """
+    close environment
+    """
     def close(self):
         self.env.close()
 
+    """
+    Reset environment 
+    """
     def reset(self):
         self.close()
         self.load_env(0)
