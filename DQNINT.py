@@ -14,7 +14,7 @@ from keras.models import load_model
 from GameHandler import Game
 
 # Parameters
-IMAGE_HEIGTH = 100
+IMAGE_HEIGHT = 100
 IMAGE_WIDTH = 100
 ENV_LOCATION = "build/UnityFrogger"
 # rewards for terminal find
@@ -31,7 +31,7 @@ GAMMA = 0.99
 # agent
 FINAL_EPSILON = 0.1  # final value of epsilon
 INITIAL_EPSILON = 1  # starting value of epsilon
-OBSERVER = 100 #50000  # filling D (experience replay data)
+OBSERVER = 100  #50000  # filling D (experience replay data)
 REPLAY_SIZE = 100000  # size of D
 
 #
@@ -46,14 +46,15 @@ TEMPERATURE = 1
 class Brain:
 
     def __init__(self):
-        self.model = self._createModel()   # q model
-        self._model = self._createModel()  # q` model ( used to calculate predication for error)
+        self.model = self._create_model()   # q model
+        self._model = self._create_model()  # q` model ( used to calculate predication for error)
+        self.training_loss = 0
 
     # no init of network param : we can use normal dist.-:init=lambda shape, name: normal(shape, scale=0.01, name=name),
-    def _createModel(self):
+    def _create_model(self):
 
         model = Sequential()
-        model.add(Convolution2D(32, 8, 8, subsample=(4, 4), input_shape=(IMAGE_HEIGTH, IMAGE_WIDTH, STACK_SIZE)))
+        model.add(Convolution2D(32, 8, 8, subsample=(4, 4), input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, STACK_SIZE)))
         model.add(Activation('relu'))
 
         model.add(Convolution2D(64, 4, 4, subsample=(2, 2)))
@@ -65,81 +66,83 @@ class Brain:
         model.add(Flatten())
         model.add(Dense(512))
         model.add(Activation('linear'))
-        #model.add(Activation('relu'))
+        # model.add(Activation('relu'))
         model.add(Dense(5))
 
         opt = RMSprop(lr=LEARNING_RATE, rho=0.95, epsilon=0.01)
-        #opt = Adam(lr=LEARNING_RATE)
+        # opt = Adam(lr=LEARNING_RATE)
         model.compile(loss='mean_squared_error', optimizer=opt)  # mse for dqn
 
         return model
 
     # predict action from state images
-    def predictAction(self, state):
+    def predict_action(self, state):
 
         # todo : cal soft max and call lan based model to find the action
         q = self.model.predict(self.pre_process_images(state))  # input a stack of 4 images, get the prediction
-        max_Q = np.argmax(q)
-        actionVal = max_Q
+        max_q = np.argmax(q)
+        action_val = max_q
 
-        return actionVal
+        return action_val
 
-    # calculate softmax values for actions (
+    # calculate softmax values for actions
     # used fixed 5 actions
     def calculate_softmax(self, q):
-        sofmaxval = []
-        # cal total softamx
+        softmax_val = []
+        # cal total softmax
         total = 0
         for i in range(0, 5):
             total += math.exp(q[i]/TEMPERATURE)
         # cal each soft max
         for i in range(0, 5):
-            sofmaxval.append((math.exp(q[i]/TEMPERATURE)/total))
+            softmax_val.append((math.exp(q[i]/TEMPERATURE)/total))
 
-        return sofmaxval
+        return softmax_val
 
     # train model using the re play queue
-    def train(self, minibatch):
+    def train(self, mini_batch):
 
-        self.trainingLoss = 0
+        self.training_loss = 0
 
-        inputs = np.zeros((BATCH, IMAGE_HEIGTH, IMAGE_WIDTH, STACK_SIZE))  # 2500, 100, 100, 4
+        inputs = np.zeros((BATCH, IMAGE_HEIGHT, IMAGE_WIDTH, STACK_SIZE))  # 2500, 100, 100, 4
         targets = np.zeros((inputs.shape[0], 5))  # 2500, 4
         targets_ = np.zeros((inputs.shape[0], 5))  # 2500, 4
 
         # Now we do the experience replay
-        for j in range(0, len(minibatch)):
-            state_t = minibatch[j][0]  # state
-            action_t = minibatch[j][1]  # action
-            reward_t = minibatch[j][2]  # reward
-            state_t1 = minibatch[j][3]  # new state
-            terminal = minibatch[j][4]  # is terminal reached or not
+        for j in range(0, len(mini_batch)):
+            state_t = mini_batch[j][0]  # state
+            action_t = mini_batch[j][1]  # action
+            reward_t = mini_batch[j][2]  # reward
+            state_t1 = mini_batch[j][3]  # new state
+            terminal = mini_batch[j][4]  # is terminal reached or not
 
             inputs[j:j + 1] = self.pre_process_images(state_t)  # saved down s_t as input
 
-            targets[j] = self.model.predict(self.pre_process_images(state_t))  # predict from the model each action value
-            targets_[j] = self.model.predict(self.pre_process_images(state_t1))  # predict from the online model each action value
+            # predict q values for current state
+            targets[j] = self.model.predict(self.pre_process_images(state_t))
+            # predict q values for next state
+            targets_[j] = self.model.predict(self.pre_process_images(state_t1))
 
             # todo : modification to call lan based model and predict actions for the training
             softmax_values = self.calculate_softmax(targets[j])
 
-            Q_sa = self._model.predict(self.pre_process_images(state_t1))  # predict to get arg max Q to cal TD
+            q_sa = self._model.predict(self.pre_process_images(state_t1))  # predict to get arg max Q to cal TD
 
             if terminal:
                 targets[j, action_t] = reward_t  # if terminal only set target as reward for the action
             else:
-                targets[j, action_t] = reward_t + GAMMA * Q_sa[0][np.argmax(targets_[j])]
+                targets[j, action_t] = reward_t + GAMMA * q_sa[0][np.argmax(targets_[j])]
 
-        self.trainingLoss += self.model.train_on_batch(inputs, targets)
+        self.training_loss += self.model.train_on_batch(inputs, targets)
 
     # method to convert images to B/W
     def pre_process_images(self, state):
-        size = (IMAGE_WIDTH, IMAGE_HEIGTH, STACK_SIZE)  # create list to keep frames
+        size = (IMAGE_WIDTH, IMAGE_HEIGHT, STACK_SIZE)  # create list to keep frames
         stack = np.zeros(size)
 
         for i in range(0, STACK_SIZE):
             st = skimage.color.rgb2gray(state[0][:, :, :, i])
-            st_gray = skimage.transform.resize(st, (IMAGE_WIDTH, IMAGE_HEIGTH))
+            st_gray = skimage.transform.resize(st, (IMAGE_WIDTH, IMAGE_HEIGHT))
             stack[:, :, i] = st_gray
 
         stack = stack.reshape(1, stack.shape[0], stack.shape[1], stack.shape[2])
@@ -147,11 +150,11 @@ class Brain:
         return stack
 
     # update q`
-    def updateTargetModel(self):
+    def update_target_model(self):
         self._model = self.model
 
-    def save(self, modelName):
-        self.model.save(modelName)
+    def save(self, model_name):
+        self.model.save(model_name)
 
 
 # agent to conduct the steps
@@ -167,38 +170,38 @@ class Agent:
     def act(self, state):
 
         if random.random() <= self.epsilon:
-            actionVal = self.actRandom()
+            action_val = self.act_random()
 
         else:
-            actionVal = self.brain.predictAction(state)  # input a stack of 4 images, get the prediction
+            action_val = self.brain.predict_action(state)  # input a stack of 4 images, get the prediction
 
-        return actionVal
+        return action_val
 
-    def actRandom(self):
+    def act_random(self):
 
         return random.randrange(5)
 
-    def observe(self, state, actionValue, reward, newState, terminalReached):
+    def observe(self, state, action_value, reward, new_state, terminal_reached):
 
         if len(self.D) > REPLAY_SIZE:
             self.D.popleft()
-        self.D.append((state, actionValue, reward, newState, terminalReached))
+        self.D.append((state, action_value, reward, new_state, terminal_reached))
 
     def replay(self):
-        # sample a minibatch to train on
-        minibatch = random.sample(self.D, BATCH)
-        self.brain.train(minibatch)
+        # sample a mini batch to train on
+        mini_batch = random.sample(self.D, BATCH)
+        self.brain.train(mini_batch)
 
-    def updateBrain(self):
-        self.brain.updateTargetModel()
+    def update_brain(self):
+        self.brain.update_target_model()
 
-    def updateEpsiolon(self):
+    def update_epsilon(self):
         if self.epsilon > FINAL_EPSILON:
             self.epsilon -= (INITIAL_EPSILON - FINAL_EPSILON) / REPLAY_SIZE
 
-    def saveBrain(self):
-        modelName = 'testModel' + str(self.modelCount) + '.h5'
-        self.brain.save(modelName)
+    def save_brain(self):
+        model_name = 'testModel' + str(self.modelCount) + '.h5'
+        self.brain.save(model_name)
         self.modelCount += 1
 
 
@@ -214,10 +217,10 @@ class Environment:
         #  fill D
         #  do initial action to get initial state
         action = 0
-        reward, state_t, terminal = self.game.perform_action(action, IMAGE_HEIGTH, IMAGE_WIDTH)
+        reward, state_t, terminal = self.game.perform_action(action, IMAGE_HEIGHT, IMAGE_WIDTH)
         for i in range(0, OBSERVER):
-            action = self.agent.actRandom()
-            reward, state_t1, terminal = self.game.perform_action(action, IMAGE_HEIGTH, IMAGE_WIDTH)
+            action = self.agent.act_random()
+            reward, state_t1, terminal = self.game.perform_action(action, IMAGE_HEIGHT, IMAGE_WIDTH)
             self.agent.observe(state_t, action, reward, state_t1, terminal)
             state_t = state_t1
 
@@ -227,20 +230,20 @@ class Environment:
         # train agent
         #  do initial action to get initial state
         action = 0
-        reward, state_t, terminal = self.game.perform_action(action, IMAGE_HEIGTH, IMAGE_WIDTH)
+        reward, state_t, terminal = self.game.perform_action(action, IMAGE_HEIGHT, IMAGE_WIDTH)
         for i in range(0, TOTAL_EPI):
             action = self.agent.act(state_t)
-            reward, state_t1, terminal = self.game.perform_action(action, IMAGE_HEIGTH, IMAGE_WIDTH)
+            reward, state_t1, terminal = self.game.perform_action(action, IMAGE_HEIGHT, IMAGE_WIDTH)
             self.agent.observe(state_t, action, reward, state_t1, terminal)
             self.agent.replay()
-            self.agent.updateEpsiolon()
+            self.agent.update_epsilon()
 
             if i % C == 0:
-                self.agent.updateBrain()
-                self.saveModel()
+                self.agent.update_brain()
+                self.save_model()
             if terminal:
                 action = 0
-                reward, state_t1, terminal = self.game.perform_action(action, IMAGE_HEIGTH, IMAGE_WIDTH)
+                reward, state_t1, terminal = self.game.perform_action(action, IMAGE_HEIGHT, IMAGE_WIDTH)
 
             state_t = state_t1
 
@@ -252,10 +255,10 @@ class Environment:
         # load model based on the model name : Agent -> brain
         # select action from loaded model brain : Agent
         # perform action to game
-        # keep rewards (cumilate to teminatition)
+        # keep rewards (accumulate to termination)
 
-    def saveModel(self):
-        self.agent.saveBrain()
+    def save_model(self):
+        self.agent.save_brain()
 
 
 # -- Main -- #
@@ -265,4 +268,4 @@ environment = Environment()
 try:
     environment.run()
 finally:
-    environment.saveModel()
+    environment.save_model()
