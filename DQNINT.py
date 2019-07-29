@@ -16,7 +16,7 @@ from GameHandler import Game
 # Parameters
 IMAGE_HEIGHT = 100
 IMAGE_WIDTH = 100
-ENV_LOCATION = "build/UnityFrogger"
+ENV_LOCATION = "build/UnityFrogge"
 # rewards for terminal find
 DEATH_REWARD = -50
 GAME_OVER_REWARD = -50
